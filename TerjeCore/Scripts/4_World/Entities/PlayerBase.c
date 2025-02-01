@@ -9,6 +9,7 @@ modded class PlayerBase
 {
 	private const int TERJE_CORE_STORE_BEGIN_MARKER_V1 = 133986254;
 	private const int TERJE_CORE_STORE_END_MARKER_V1 = 1860587056;
+	private int m_terjeModifierId = 0;
 	private ref array<ref TerjePlayerModifierBase> m_terjeModifiers;
 	private ref TerjePlayerProfile m_terjeProfile = null;
 	private float m_terjeProfileSynchTimer = 0;
@@ -125,6 +126,7 @@ modded class PlayerBase
 			ref array<ref TerjePlayerModifierBase> terjeModifiers = new array<ref TerjePlayerModifierBase>;
 			OnTerjeRegisterModifiers(terjeModifiers);
 			m_terjeModifiers = terjeModifiers;
+			m_terjeModifierId = 0;
 		}
 	}
 	
@@ -248,7 +250,27 @@ modded class PlayerBase
 	
 	void OnTerjeRPC(PlayerIdentity sender, string id, ParamsReadContext ctx)
 	{
-		// Override from your mod to handle RPCs.
+		if (id == "~pse")
+		{
+			if (!GetGame() || !GetGame().IsClient())
+			{
+				return;
+			}
+			
+			Param2<string, float> soundEventParams;
+			if (!ctx.Read(soundEventParams))
+			{
+				return;		
+			}
+			
+			EffectSound effectTerjeSound = SEffectManager.PlaySoundOnObject(soundEventParams.param1, this);
+			if (effectTerjeSound)
+			{
+				effectTerjeSound.SetSoundVolume(soundEventParams.param2);
+				effectTerjeSound.SetSoundMaxVolume(soundEventParams.param2);
+				effectTerjeSound.SetAutodestroy(true);
+			}
+		}
 	}
 	
 	void TerjeRPCSingleParam(string id, Param params, bool guaranteed, PlayerIdentity recipient = NULL)
@@ -257,6 +279,15 @@ modded class PlayerBase
 		sendData.Insert(new ref Param1<string>( id ));
 		sendData.Insert(params);
 		this.RPC(TerjeERPC.TerjeRPC_CUSTOM_CALL, sendData, guaranteed, recipient);
+	}
+	
+	void TerjeSendSoundEvent(string soundSet, string soundType, float volume)
+	{
+		if (GetGame() && GetGame().IsDedicatedServer() && soundSet != "" && volume > 0)
+		{
+			Param2<string, float> params = new Param2<string, float>(soundSet, volume);
+			TerjeRPCSingleParam("~pse", params, false);
+		}
 	}
 	
 	override void OnCommandVehicleStart()

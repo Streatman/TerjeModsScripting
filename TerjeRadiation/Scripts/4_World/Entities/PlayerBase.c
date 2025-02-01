@@ -8,6 +8,7 @@
 modded class PlayerBase
 {
 	private int m_terjeRadiationSynch = 0;
+	private int m_terjeAbsoluteRadProtection = -1;
 	
 	override void Init()
 	{
@@ -29,7 +30,7 @@ modded class PlayerBase
 		{
 			return true;
 		}
-		else if (GetTerjeStats().GetAntiradLevel())
+		else if (GetTerjeStats() != null && GetTerjeStats().GetAntiradLevel())
 		{
 			return true;
 		}
@@ -43,7 +44,7 @@ modded class PlayerBase
 		{
 			return true;
 		}
-		else if (GetTerjeStats().GetRadiationLevel())
+		else if (GetTerjeStats() != null && GetTerjeStats().GetRadiationLevel())
 		{
 			return true;
 		}
@@ -58,8 +59,26 @@ modded class PlayerBase
 	
 	override bool AddTerjeRadiationAdvanced(float rAmount, float environmentRadiation, bool ignoreProtection)
 	{
-		if (GetGame().IsDedicatedServer() && GetTerjeStats())
+		if (GetGame().IsDedicatedServer() && IsAlive() && GetTerjeStats() != null)
 		{
+			if (m_terjeAbsoluteRadProtection == -1)
+			{
+				PluginTerjeScriptableAreas plugin = GetTerjeScriptableAreas();
+				if (plugin && plugin.HasAbsoluteCustomProtectionOfType(this, "radiation"))
+				{
+					m_terjeAbsoluteRadProtection = 1;
+				}
+				else
+				{
+					m_terjeAbsoluteRadProtection = 0;
+				}
+			}
+			
+			if (m_terjeAbsoluteRadProtection == 1)
+			{
+				return false;
+			}
+			
 			if (rAmount > 0 && !ignoreProtection)
 			{
 				rAmount *= (1.0 - Math.Clamp(GetTerjeRadiationProtection(environmentRadiation), 0, 1));
@@ -78,7 +97,7 @@ modded class PlayerBase
 	
 	override float GetTerjeRadiation()
 	{
-		if (GetTerjeStats())
+		if (IsAlive() && GetTerjeStats() != null)
 		{
 			if (GetGame().IsDedicatedServer())
 			{
@@ -158,7 +177,7 @@ modded class PlayerBase
 
 	void UpdateTerjeRadiationAccumulated()
 	{
-		if (GetGame().IsDedicatedServer())
+		if (GetGame().IsDedicatedServer() && IsAlive() && GetTerjeStats() != null)
 		{
 			int newValue = (int)Math.Round(GetTerjeStats().GetRadiationAccumulated() / TerjeRadiationConstants.RADIATION_PLAYER_ACCUMULATOR_SYNCH_DIVIDER);
 			if (m_terjeRadiationSynch != newValue)
